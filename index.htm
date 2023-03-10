@@ -1,0 +1,177 @@
+<html>
+<head>
+    <style type="text/css">
+        body {
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            font-size: 10pt;
+        }
+        th {
+            text-align: left;
+            vertical-align: top;
+            width: 12em;
+        }
+        #snapshot {
+            cursor: grab;
+        }
+    </style>
+</head>
+<body>
+    <h1>MJPEG Webcam Server</h1>
+    <table>
+        <tr>
+            <td width="50%">
+                <h3>Capture Engine</h3>
+                <table>
+                    <tr>
+                        <th>Status:</th><td id="capture-status"></td>
+                    </tr>
+                    <tr>
+                        <th>Last Request:</th><td id="capture-last-request"></td>
+                    </tr>
+                    <tr>
+                        <th>Bitrate:</th><td id="capture-bitrate"></td>
+                    </tr>
+                    <tr>
+                        <th>FPS:</th><td id="capture-fps"></td>
+                    </tr>
+                    <tr>
+                        <th>Speed:</th><td id="capture-speed"></td>
+                    </tr>
+                    <tr>
+                        <th>Time:</th><td id="capture-time"></td>
+                    </tr>
+                </table>
+                <h3>Webserver Stats</h3>
+                <table>
+                    <tr>
+                        <th>Snapshots Served:</th><td id="webserver-request-snapshots"></td>
+                    </tr>
+                    <tr>
+                        <th>Streams Served:</th><td id="webserver-request-streams"></td>
+                    </tr>
+                    <tr>
+                        <th>Current Streams:</th><td id="webserver-current-streams"></td>
+                    </tr>
+                    <tr>
+                        <th>Frames Snapshot:</th><td id="webserver-frames-snapshot"></td>
+                    </tr>
+                    <tr>
+                        <th>Frames Streamed:</th><td id="webserver-frames-streamed"></td>
+                    </tr>
+                </table>
+            </td>
+            <td width="50%">
+                <img id="snapshot" src="/snapshot" width="95%" style="float: left" alt="Preview - Click to refresh" title="Preview - Click to refresh"/>
+            </td>
+        </tr>
+    </table>
+    <h3>FFMPeg Details</h3>
+    <table>
+        <tr>
+            <th>Command:</th><td id="ffmpeg-command"></td>
+        </tr>
+        <tr>
+            <th>Version:</th><td id="ffmpeg-version"></td>
+        </tr>
+        <tr>
+            <th>Config:</th><td id="ffmpeg-config"></td>
+        </tr>
+        <tr>
+            <th>Devices:</th><td id="ffmpeg-devices"></td>
+        </tr>
+        <tr>
+            <th>Logs:</th><td id="ffmpeg-logs"></td>
+        </tr>
+    </table>
+    <br />
+    <script type="text/javascript">
+
+    const setElem = (elemId, contents) => {
+        const elem = document.getElementById(elemId);
+        if (elem) {
+            elem.innerHTML = contents;
+        }
+    }
+
+    const loadStatus = () => {
+        function loadListener() {
+            try {
+                const state = JSON.parse(this.responseText);
+                console.log(state);
+                setElem('capture-status', state.capture);
+                if (state.status) {
+                    setElem('capture-bitrate', state.status.bitrate);
+                    setElem('capture-fps', state.status.fps);
+                    setElem('capture-speed', state.status.speed);
+                    setElem('capture-time', state.status.time);
+                }
+                else {
+                    setElem('capture-bitrate', '');
+                    setElem('capture-fps', '');
+                    setElem('capture-speed', '');
+                    setElem('capture-time', '');
+                }
+                setElem('capture-last-request', state.lastrequest);
+
+                setElem('webserver-request-snapshots', state.stats.requests.snapshots);
+                setElem('webserver-request-streams', state.stats.requests.streams);
+                setElem('webserver-current-streams', state.stats.requests.currentStreams);
+                setElem('webserver-frames-snapshot', state.stats.frames.snapshot);
+                setElem('webserver-frames-streamed', state.stats.frames.streamed);
+
+                setElem('ffmpeg-command', state.command);
+                setElem('ffmpeg-version', state.version);
+                setElem('ffmpeg-config', state.configuration);
+                setElem('ffmpeg-devices', state.logs.avfoundation ? state.logs.avfoundation.join('<br />\n') : '');
+                setElem('ffmpeg-logs', state.lastlogs.join('<br />\n'));
+
+            }
+            catch (e) {
+                console.error(e);
+            }
+            window.setTimeout(loadStatus, 5000);
+        }
+
+        function loadError(e) {
+            console.error('Load error');
+            console.error(e);
+        }
+
+        let timeout = null;
+        
+        const req = new XMLHttpRequest();
+        req.addEventListener("load", loadListener);
+        req.addEventListener("error", loadError);
+        req.addEventListener("timeout", loadError);
+        req.onreadystatechange = () => {
+            if (timeout !== null) {
+                window.clearTimeout(timeout);
+                timeout = null;
+            }
+            if (req.readyState == 1) {
+                timeout = window.setTimeout(() => {
+                    console.error('AJAX timed out?');
+                    xhr.abort();
+                    window.setTimeout(loadStatus, 5000);
+                }, 10000);
+            }
+        }
+        req.open("GET", "/status");
+        req.send();
+    }
+
+    document.onreadystatechange = () => {
+        if (document.readyState == 'complete') {
+            loadStatus();
+        }
+        const snapshot = document.getElementById('snapshot');
+        if (snapshot) {
+            snapshot.addEventListener('click', (e) => {
+                snapshot.src = '/snapshot?' + new Date().getTime();
+            });
+        }
+    };
+
+    </script>
+</body>
+</html>
