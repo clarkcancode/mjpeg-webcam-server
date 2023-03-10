@@ -224,7 +224,6 @@ class FFMpegFrameStream extends stream.Writable {
     }
 
     lastFrame() {
-        console.log('lastFrame');
         this.requests.lastframe = moment();
         this.start();
         return this._lastFrame;
